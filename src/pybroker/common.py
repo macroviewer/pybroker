@@ -89,6 +89,9 @@ class DataCol(Enum):
     LOW = "low"
     CLOSE = "close"
     VOLUME = "volume"
+    QUOTE_VOLUME = "quote_volume"
+    TAKER_BUY_VOLUME = "taker_buy_volume"
+    TAKER_BUY_QUOTE_VOLUME = "taker_buy_quote_volume"
     VWAP = "vwap"
 
 
@@ -218,7 +221,7 @@ class BarData:
 def to_datetime(
     date: Union[str, datetime, np.datetime64, pd.Timestamp],
 ) -> datetime:
-    """Converts ``date`` to :class:`datetime`."""
+    """Converts ``date`` to :class:`datetime`."""    
     if isinstance(date, pd.Timestamp):
         return date.to_pydatetime()  # type: ignore[union-attr]
     elif isinstance(date, datetime):

@@ -256,7 +256,7 @@ class BacktestMixin:
                 or pos_size_handler is not None
             ):
                 if is_cover_sched:
-                    cover_sched[date].sort(key=_sort_by_score, reverse=True)
+                    cover_sched[date].sort(key=_sort_by_score, reverse=True) # sort by score, highest to lowest
                 elif is_buy_sched:
                     buy_sched[date].sort(key=_sort_by_score, reverse=True)
             if is_sell_sched and (
@@ -306,7 +306,7 @@ class BacktestMixin:
                     portfolio=portfolio,
                     enable_fractional_shares=enable_fractional_shares,
                 )
-            portfolio.capture_bar(date, test_data)
+            portfolio.capture_bar(date, test_data) # capture the current portfolio state of the bar
             if before_exec_fn is not None and active_ctxs:
                 before_exec_fn(active_ctxs)
             for sym, ctx in active_ctxs.items():

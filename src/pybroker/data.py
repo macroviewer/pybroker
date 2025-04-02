@@ -30,6 +30,7 @@ from pybroker.common import (
     verify_date_range,
 )
 from pybroker.scope import StaticScope
+from duck_client import DataBase
 
 
 class DataSourceCacheMixin:
@@ -205,9 +206,7 @@ class DataSource(ABC, DataSourceCacheMixin):
         if isinstance(symbols, str) and not symbols:
             raise ValueError("Symbols cannot be empty.")
         unique_syms = (
-            frozenset((symbols,))
-            if isinstance(symbols, str)
-            else frozenset(symbols)
+            frozenset((symbols,)) if isinstance(symbols, str) else frozenset(symbols)
         )
         if not unique_syms:
             raise ValueError("Symbols cannot be empty.")
@@ -286,9 +285,7 @@ class DataSource(ABC, DataSourceCacheMixin):
     def _format_timeframe(self, timeframe: Optional[str]) -> str:
         if not timeframe:
             return ""
-        return " ".join(
-            f"{part[0]}{part[1]}" for part in parse_timeframe(timeframe)
-        )
+        return " ".join(f"{part[0]}{part[1]}" for part in parse_timeframe(timeframe))
 
 
 def _parse_alpaca_timeframe(
@@ -311,6 +308,33 @@ def _parse_alpaca_timeframe(
     else:
         raise ValueError(f"Invalid Alpaca timeframe: {timeframe}")
     return tf[0], unit
+
+
+def _parse_duck_timeframe(timeframe: Optional[str]) -> str:
+    available_timeframes = {
+        "1min": "1m",
+        "3min": "3m",
+        "15min": "15m",
+        "30min": "30m",
+        "1hour": "1h",
+        "4hour": "4h",
+        "12hour": "12h",
+        "1day": "1d",
+    }
+
+    if timeframe is None:
+        return "1d"
+    parts = parse_timeframe(timeframe)
+    if len(parts) != 1:
+        raise ValueError(f"Invalid Duck timeframe: {timeframe}")
+    tf = next(iter(parts))
+
+    timeframe = f"{tf[0]}{tf[1]}"
+
+    if timeframe not in available_timeframes:
+        raise ValueError(f"Invalid Duck timeframe: {timeframe}")
+
+    return available_timeframes[timeframe]
 
 
 class Alpaca(DataSource):
@@ -380,9 +404,7 @@ class Alpaca(DataSource):
         df.rename(columns={"timestamp": DataCol.DATE.value}, inplace=True)
         df = df[[col.value for col in DataCol]]
         df[DataCol.DATE.value] = pd.to_datetime(df[DataCol.DATE.value])
-        df[DataCol.DATE.value] = df[DataCol.DATE.value].dt.tz_convert(
-            self.__EST
-        )
+        df[DataCol.DATE.value] = df[DataCol.DATE.value].dt.tz_convert(self.__EST)
         return df
 
 
@@ -412,9 +434,7 @@ class AlpacaCrypto(DataSource):
     def __init__(self, api_key: str, api_secret: str):
         super().__init__()
         self._scope.register_custom_cols(self.TRADE_COUNT)
-        self._api = alpaca_crypto.CryptoHistoricalDataClient(
-            api_key, api_secret
-        )
+        self._api = alpaca_crypto.CryptoHistoricalDataClient(api_key, api_secret)
 
     def query(
         self,
@@ -453,9 +473,7 @@ class AlpacaCrypto(DataSource):
         df.rename(columns={"timestamp": DataCol.DATE.value}, inplace=True)
         df = df[[col for col in self.COLUMNS]]
         df[DataCol.DATE.value] = pd.to_datetime(df[DataCol.DATE.value])
-        df[DataCol.DATE.value] = df[DataCol.DATE.value].dt.tz_convert(
-            self.__EST
-        )
+        df[DataCol.DATE.value] = df[DataCol.DATE.value].dt.tz_convert(self.__EST)
         return df
 
 
@@ -498,9 +516,7 @@ class YFinance(DataSource):
         Returns:
             :class:`pandas.DataFrame` containing the queried data.
         """
-        return super().query(
-            symbols, start_date, end_date, self.__TIMEFRAME, _adjust
-        )
+        return super().query(symbols, start_date, end_date, self.__TIMEFRAME, _adjust)
 
     def _fetch_data(
         self,
@@ -512,8 +528,7 @@ class YFinance(DataSource):
     ) -> pd.DataFrame:
         """:meta private:"""
         show_yf_progress_bar = (
-            not self._logger._disabled
-            and not self._logger._progress_bar_disabled
+            not self._logger._disabled and not self._logger._progress_bar_disabled
         )
         df = yfinance.download(
             list(symbols),
@@ -568,3 +583,70 @@ class YFinance(DataSource):
                     sym_df[self.ADJ_CLOSE] = df[("Adj Close", sym)].values
                 result = pd.concat((result, sym_df))
         return result
+
+
+class DuckCrypto(DataSource):
+    """Retrieves crypto data from `DuckDB <https://duckdb.org/>`_.
+
+    Args:
+        path: Path to the DuckDB database file.
+    """
+
+    def __init__(
+        self,
+        asset_class: str = "um",
+        exchange: str = "binance",
+        db_path: str = "/usr/local/share/binance_data/data.db",
+    ):
+        super().__init__()
+        self._db = DataBase(db_path = db_path)
+        self._asset_class = asset_class
+        self._exchange = exchange
+
+    def __post_init__(self):
+        if self._asset_class not in ["spot", "um", "swap"]:
+            raise ValueError(f"Invalid asset class: {self._asset_class}")
+        if self._exchange not in ["binance", "okx"]:
+            raise ValueError(f"Invalid exchange: {self._exchange}")
+
+    def query(
+        self,
+        symbols: Union[str, Iterable[str]],
+        start_date: Union[str, datetime],
+        end_date: Union[str, datetime],
+        timeframe: Optional[str] = "1d",
+        _adjust: Optional[Any] = None,
+    ) -> pd.DataFrame:        
+        return super().query(symbols, start_date, end_date, timeframe, _adjust)
+
+    def _fetch_data(
+        self,
+        symbols: frozenset[str],
+        start_date: datetime,
+        end_date: datetime,
+        timeframe: Optional[str],
+        _adjust: Optional[Any],
+    ) -> pd.DataFrame:
+        timeframe = _parse_duck_timeframe(timeframe)
+        
+        if symbols:
+            symbols = list(symbols)
+        
+        df = self._db.df_klines(
+            symbols=symbols,
+            freq=timeframe,
+            asset_class=self._asset_class,
+            start_date=start_date,
+            end_date=end_date,
+            order_by_timestamp=True,
+            exchange=self._exchange,
+        )
+        
+        df.rename(columns={"timestamp": DataCol.DATE.value}, inplace=True)
+        return df
+
+    def get_available_symbols(self) -> list[str]:
+        return self._db.list_all_symbols(
+            asset_class=self._asset_class,
+            exchange=self._exchange,
+        )
