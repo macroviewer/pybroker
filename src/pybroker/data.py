@@ -585,29 +585,32 @@ class YFinance(DataSource):
         return result
 
 
-class DuckCrypto(DataSource):
+class BinanceData(DataSource):
     """Retrieves crypto data from `DuckDB <https://duckdb.org/>`_.
 
     Args:
         path: Path to the DuckDB database file.
     """
+    QUOTE_VOLUME = "quote_volume"
+    TAKER_BUY_VOLUME = "taker_buy_volume"
+    TAKER_BUY_QUOTE_VOLUME = "taker_buy_quote_volume"
+    
 
     def __init__(
         self,
         asset_class: str = "um",
-        exchange: str = "binance",
         db_path: str = "/usr/local/share/binance_data/data.db",
     ):
         super().__init__()
         self._db = DataBase(db_path = db_path)
         self._asset_class = asset_class
-        self._exchange = exchange
-
+        self._scope.register_custom_cols(
+            [self.QUOTE_VOLUME, self.TAKER_BUY_VOLUME, self.TAKER_BUY_QUOTE_VOLUME]
+        )
+        
     def __post_init__(self):
-        if self._asset_class not in ["spot", "um", "swap"]:
+        if self._asset_class not in ["spot", "um"]:
             raise ValueError(f"Invalid asset class: {self._asset_class}")
-        if self._exchange not in ["binance", "okx"]:
-            raise ValueError(f"Invalid exchange: {self._exchange}")
 
     def query(
         self,
@@ -639,7 +642,7 @@ class DuckCrypto(DataSource):
             start_date=start_date,
             end_date=end_date,
             order_by_timestamp=False,
-            exchange=self._exchange,
+            exchange="binance",
         )
         
         df.rename(columns={"timestamp": DataCol.DATE.value}, inplace=True)
@@ -648,5 +651,5 @@ class DuckCrypto(DataSource):
     def get_available_symbols(self) -> list[str]:
         return self._db.list_all_symbols(
             asset_class=self._asset_class,
-            exchange=self._exchange,
+            exchange="binance",
         )

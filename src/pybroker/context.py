@@ -754,36 +754,6 @@ class ExecContext(BaseContext):
             self._sym_end_index[self.symbol],
         )
     
-    @property   
-    def quote_volume(self) -> Optional[NDArray[np.float64]]:
-        """Current bar's quote volume."""
-        self._verify_symbol()
-        return self._col_scope.fetch(  # type: ignore[return-value]
-            self.symbol,  # type: ignore[arg-type]
-            DataCol.QUOTE_VOLUME.value,
-            self._sym_end_index[self.symbol],
-        )
-    
-    @property   
-    def taker_buy_volume(self) -> Optional[NDArray[np.float64]]:
-        """Current bar's taker buy volume."""
-        self._verify_symbol()
-        return self._col_scope.fetch(  # type: ignore[return-value]
-            self.symbol,  # type: ignore[arg-type]
-            DataCol.TAKER_BUY_VOLUME.value,
-            self._sym_end_index[self.symbol],
-        )
-    
-    @property
-    def taker_buy_quote_volume(self) -> Optional[NDArray[np.float64]]:
-        """Current bar's taker buy quote volume.""" 
-        self._verify_symbol()
-        return self._col_scope.fetch(  # type: ignore[return-value]
-            self.symbol,  # type: ignore[arg-type]
-            DataCol.TAKER_BUY_QUOTE_VOLUME.value,
-            self._sym_end_index[self.symbol],
-        )
-    
     @property
     def vwap(self) -> Optional[NDArray[np.float64]]:
         """Current bar's volume-weighted average price (VWAP)."""

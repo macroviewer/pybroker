@@ -89,9 +89,6 @@ class DataCol(Enum):
     LOW = "low"
     CLOSE = "close"
     VOLUME = "volume"
-    QUOTE_VOLUME = "quote_volume"
-    TAKER_BUY_VOLUME = "taker_buy_volume"
-    TAKER_BUY_QUOTE_VOLUME = "taker_buy_quote_volume"
     VWAP = "vwap"
 
 
