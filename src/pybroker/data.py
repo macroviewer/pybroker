@@ -638,7 +638,7 @@ class DuckCrypto(DataSource):
             asset_class=self._asset_class,
             start_date=start_date,
             end_date=end_date,
-            order_by_timestamp=True,
+            order_by_timestamp=False,
             exchange=self._exchange,
         )
         

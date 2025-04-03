@@ -33,7 +33,7 @@ from pybroker.context import (
     set_exec_ctx_data,
     set_pos_size_ctx_data,
 )
-from pybroker.data import AlpacaCrypto, DataSource
+from pybroker.data import AlpacaCrypto, DuckCrypto, DataSource
 from pybroker.eval import BootstrapResult, EvalMetrics, EvaluateMixin
 from pybroker.indicator import Indicator, IndicatorsMixin
 from pybroker.model import ModelSource, ModelsMixin, TrainedModel
@@ -172,7 +172,7 @@ class BacktestMixin:
             test_data.reset_index(drop=True)
             .set_index([DataCol.SYMBOL.value, DataCol.DATE.value])
             .sort_index()
-        )
+        ) #NOTE: This ensures that the index is sorted by symbol and date, multi indexing
         col_scope = ColumnScope(test_data)
         ind_scope = IndicatorScope(indicator_data, test_dates)
         input_scope = ModelInputScope(col_scope, ind_scope, models)
@@ -1298,9 +1298,7 @@ class Strategy(
         )  # type: ignore[return-value]
 
     def _fractional_shares_enabled(self):
-        return self._config.enable_fractional_shares or isinstance(
-            self._data_source, AlpacaCrypto
-        )
+        return self._config.enable_fractional_shares or isinstance(self._data_source, (AlpacaCrypto, DuckCrypto))
 
     def _run_walkforward(
         self,
