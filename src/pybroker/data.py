@@ -312,6 +312,7 @@ def _parse_alpaca_timeframe(
 
 def _parse_duck_timeframe(timeframe: Optional[str]) -> str:
     available_timeframes = {
+        "1sec": "1s",   
         "1min": "1m",
         "3min": "3m",
         "15min": "15m",
@@ -600,14 +601,16 @@ class BinanceData(DataSource):
         self,
         asset_class: str = "um",
         db_path: str = "/usr/local/share/binance_data/data.db",
+        register_custom_cols: bool = True,
     ):
         super().__init__()
         self._db = DataBase(db_path = db_path)
         self._asset_class = asset_class
-        self._scope.register_custom_cols(
-            [self.QUOTE_VOLUME, self.TAKER_BUY_VOLUME, self.TAKER_BUY_QUOTE_VOLUME]
-        )
-        
+        if register_custom_cols:
+            self._scope.register_custom_cols(
+                [self.QUOTE_VOLUME, self.TAKER_BUY_VOLUME, self.TAKER_BUY_QUOTE_VOLUME]
+            )
+
     def __post_init__(self):
         if self._asset_class not in ["spot", "um"]:
             raise ValueError(f"Invalid asset class: {self._asset_class}")
@@ -652,4 +655,65 @@ class BinanceData(DataSource):
         return self._db.list_all_symbols(
             asset_class=self._asset_class,
             exchange="binance",
+        )
+
+class OkxData(DataSource):
+    """Retrieves crypto data from `DuckDB <https://duckdb.org/>`_.
+
+    Args:
+        path: Path to the DuckDB database file.
+    """
+    def __init__(
+        self,
+        asset_class: str = "swap",
+        db_path: str = "/usr/local/share/binance_data/data.db",
+    ):
+        super().__init__()
+        self._db = DataBase(db_path = db_path)
+        self._asset_class = asset_class
+
+    def __post_init__(self):
+        if self._asset_class not in ["swap"]:
+            raise ValueError(f"Invalid asset class: {self._asset_class}")
+
+    def query(
+        self,
+        symbols: Union[str, Iterable[str]],
+        start_date: Union[str, datetime],
+        end_date: Union[str, datetime],
+        timeframe: Optional[str] = "1d",
+        _adjust: Optional[Any] = None,
+    ) -> pd.DataFrame:        
+        return super().query(symbols, start_date, end_date, timeframe, _adjust)
+
+    def _fetch_data(
+        self,
+        symbols: frozenset[str],
+        start_date: datetime,
+        end_date: datetime,
+        timeframe: Optional[str],
+        _adjust: Optional[Any],
+    ) -> pd.DataFrame:
+        timeframe = _parse_duck_timeframe(timeframe)
+        
+        if symbols:
+            symbols = list(symbols)
+        
+        df = self._db.df_klines(
+            symbols=symbols,
+            freq=timeframe,
+            asset_class=self._asset_class,
+            start_date=start_date,
+            end_date=end_date,
+            order_by_timestamp=False,
+            exchange="okx",
+        )
+        
+        df.rename(columns={"timestamp": DataCol.DATE.value}, inplace=True)
+        return df
+
+    def get_available_symbols(self) -> list[str]:
+        return self._db.list_all_symbols(
+            asset_class=self._asset_class,
+            exchange="okx",
         )

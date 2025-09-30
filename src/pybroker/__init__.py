@@ -23,7 +23,7 @@ from pybroker.cache import (
 from pybroker.common import BarData, DataCol, Day, FeeMode, PriceType
 from pybroker.context import ExecContext, ExecSignal, PosSizeContext
 from pybroker.config import StrategyConfig
-from pybroker.data import Alpaca, AlpacaCrypto, YFinance, BinanceData
+from pybroker.data import Alpaca, AlpacaCrypto, YFinance, BinanceData, OkxData
 from pybroker.eval import EvalMetrics, BootstrapResult
 from pybroker.indicator import (
     Indicator,
